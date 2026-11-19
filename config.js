@@ -1,4 +1,3 @@
-// Configurazione frontend Supabase.
-// La publishable key è progettata per essere usata nel browser; proteggi i dati con RLS.
+// Configurazione frontend Supabase. Usa esclusivamente una chiave publishable nel browser.
 window.GYM_SUPABASE_URL = "https://rxruynorwoxocemuviex.supabase.co";
 window.GYM_SUPABASE_ANON_KEY = "sb_publishable_ziCYVUZVmKCSJTQPaw-Hvg_zWIILQdp";
