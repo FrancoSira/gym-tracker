@@ -1,0 +1,10 @@
+{
+  "name": "Gym Tracker",
+  "short_name": "Gym Tracker",
+  "description": "Diario personale degli allenamenti",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0c121b",
+  "theme_color": "#101722",
+  "icons": []
+}
