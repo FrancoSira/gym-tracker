@@ -59,7 +59,37 @@ function readStore(){try{return JSON.parse(localStorage.getItem(storeKey))||{log
 let cloudUser=null, cloudClient=null, cloudReady=false;
 function writeStore(s){localStorage.setItem(storeKey,JSON.stringify(s));updateStats();if(cloudUser&&cloudClient)syncCloud(s)}
 async function syncCloud(data){try{const {error}=await cloudClient.from('user_workout_data').upsert({user_id:cloudUser.id,data,updated_at:new Date().toISOString()},{onConflict:'user_id'});if(error)throw error;const el=document.getElementById('syncStatus');if(el)el.textContent='● Sincronizzazione cloud attiva · '+new Date().toLocaleTimeString('it-IT')}catch(e){console.error(e);const el=document.getElementById('syncStatus');if(el)el.textContent='⚠ Sincronizzazione non riuscita · dati locali conservati'}}
-async function activateApp(user,isDemo=false){cloudUser=user||null;document.getElementById('authGate').style.display='none';document.getElementById('mainApp').style.display='grid';if(user&&cloudClient){const {data,error}=await cloudClient.from('user_workout_data').select('data').eq('user_id',user.id).maybeSingle();if(!error&&data?.data){localStorage.setItem(storeKey,JSON.stringify(data.data))}else if(!error){await syncCloud(readStore())}else{console.error(error);alert('Accesso riuscito, ma non è stato possibile caricare i dati cloud. I dati locali restano disponibili.')}}else{const f=document.getElementById('syncStatus');if(f)f.textContent='MODALITÀ DEMO · dati solo su questo dispositivo · non sincronizzati'}renderProgram();renderDiary();updateStats();renderProgress()}
+async function activateApp(user,isDemo=false){cloudUser=user||null;document.getElementById('authGate').style.display='none';document.getElementById('mainApp').style.display='grid';if(user&&cloudClient){const {data,error}=await cloudClient.from('user_workout_data').select('data').eq('user_id',user.id).maybeSingle();if(!error&&data?.data){localStorage.setItem(storeKey,JSON.stringify(data.data))}else if(!error){await syncCloud(readStore())}else{console.error(error);alert('Accesso riuscito, ma non è stato possibile caricare i dati cloud. I dati locali restano disponibili.')}}else{const f=document.getElementById('syncStatus');if(f)f.textContent='MODALITÀ DEMO · dati solo su questo dispositivo · non sincronizzati'}renderProgram();renderDiary();updateStats();renderProgress()}async function askGemini(prompt){
+  if(!cloudClient||!cloudUser){
+    throw new Error('Devi accedere con il tuo account per utilizzare Gemini.');
+  }
+
+  const {data,error}=await cloudClient.auth.getSession();
+
+  if(error||!data.session){
+    throw new Error('Sessione non valida. Effettua nuovamente l’accesso.');
+  }
+
+  const response=await fetch(
+    'https://gym-tracker-api.f-siragusa92.workers.dev/generate',
+    {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':`Bearer ${data.session.access_token}`
+      },
+      body:JSON.stringify({prompt})
+    }
+  );
+
+  const result=await response.json();
+
+  if(!response.ok){
+    throw new Error(result.error||'Errore durante la comunicazione con Gemini.');
+  }
+
+  return result.text;
+}
 (function initAuth(){const msg=document.getElementById('authMessage');const url=window.GYM_SUPABASE_URL||'',key=window.GYM_SUPABASE_ANON_KEY||'';if(window.supabase&&url.startsWith('https://')&&key&&key!=='INSERISCI_LA_TUA_ANON_KEY'){cloudClient=window.supabase.createClient(url,key);msg.textContent='Servizio cloud configurato. Puoi accedere o creare il tuo account.';cloudClient.auth.getSession().then(({data})=>{if(data.session)activateApp(data.session.user)});cloudClient.auth.onAuthStateChange((_event,session)=>{if(session)activateApp(session.user)})}else{document.getElementById('signInBtn').disabled=true;document.getElementById('signUpBtn').disabled=true;msg.textContent='Accesso cloud non ancora configurato. Puoi provare la demo; per attivare login e sincronizzazione segui il README.'}
 document.getElementById('demoBtn').addEventListener('click',()=>activateApp(null,true));
 document.getElementById('signUpBtn').addEventListener('click',async()=>{if(!cloudClient)return;const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;if(password.length<8){msg.textContent='Usa una password di almeno 8 caratteri.';return}const {error}=await cloudClient.auth.signUp({email,password});msg.textContent=error?error.message:'Account creato. Controlla la casella email per confermare la registrazione.'});
