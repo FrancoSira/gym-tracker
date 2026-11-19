@@ -84,11 +84,13 @@ async function activateApp(user,isDemo=false){cloudUser=user||null;document.getE
 
   const result=await response.json();
 
-  if(!response.ok){
-    throw new Error(result.error||'Errore durante la comunicazione con Gemini.');
-  }
+if(!response.ok){
+  throw new Error(result.error||'Errore durante la comunicazione con Gemini.');
+}
 
-  return result.text;
+console.info('Gemini model utilizzato:', result.model || 'non indicato');
+
+return result.text;
 }
 (function initAuth(){const msg=document.getElementById('authMessage');const url=window.GYM_SUPABASE_URL||'',key=window.GYM_SUPABASE_ANON_KEY||'';if(window.supabase&&url.startsWith('https://')&&key&&key!=='INSERISCI_LA_TUA_ANON_KEY'){cloudClient=window.supabase.createClient(url,key);msg.textContent='Servizio cloud configurato. Puoi accedere o creare il tuo account.';cloudClient.auth.getSession().then(({data})=>{if(data.session)activateApp(data.session.user)});cloudClient.auth.onAuthStateChange((_event,session)=>{if(session)activateApp(session.user)})}else{document.getElementById('signInBtn').disabled=true;document.getElementById('signUpBtn').disabled=true;msg.textContent='Accesso cloud non ancora configurato. Puoi provare la demo; per attivare login e sincronizzazione segui il README.'}
 document.getElementById('demoBtn').addEventListener('click',()=>activateApp(null,true));
