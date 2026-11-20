@@ -215,6 +215,7 @@ document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',(
 function options(select,values,selected){select.innerHTML=values.map(v=>`<option value="${v}" ${v===selected?'selected':''}>${v}</option>`).join('')}
 options($('weekSelect'),Array.from({length:9},(_,i)=>String(i+1)),String(week));options($('daySelect'),DAYS,day);options($('diaryWeek'),Array.from({length:9},(_,i)=>String(i+1)),String(diaryWeek));options($('diaryDay'),DAYS,diaryDay);
 $('weekSelect').addEventListener('change',e=>{week=+e.target.value;renderProgram()});$('daySelect').addEventListener('change',e=>{day=e.target.value;renderProgram()});$('diaryWeek').addEventListener('change',e=>{diaryWeek=+e.target.value;renderDiary()});$('diaryDay').addEventListener('change',e=>{diaryDay=e.target.value;renderDiary()});
+
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 async function inspectExcelFile(file){
@@ -367,7 +368,7 @@ function parseTrainingSheet(sheetData){
 
         block.weeks.push(currentWeek);
         currentDay=null;
-        continue;
+        return;
       }
 
       // Riconosce l'intestazione della giornata.
@@ -379,7 +380,7 @@ function parseTrainingSheet(sheetData){
             `Blocco ${blockIndex+1}, riga ${rowIndex+1}: giornata senza settimana.`
           );
           currentDay=null;
-          continue;
+          return;
         }
 
         currentDay={
@@ -389,7 +390,7 @@ function parseTrainingSheet(sheetData){
         };
 
         currentWeek.days.push(currentDay);
-        continue;
+        return;
       }
 
       // Aggiorna le colonne in presenza di una nuova intestazione.
@@ -397,7 +398,7 @@ function parseTrainingSheet(sheetData){
 
       if(detectedHeader){
         fields=detectedHeader;
-        continue;
+        return;
       }
 
       if(!currentWeek || !currentDay || !fields)return;
@@ -428,7 +429,7 @@ function parseTrainingSheet(sheetData){
 
   return result;
 }
- 
+
 const RPE_TABLE={
   10:   [100,96,92,89,86,84,81,79,76,74],
   9.5:  [98,94,91,88,85,82,80,77,75,72],
