@@ -289,6 +289,6 @@ function updateStats(){const s=readStore(),logs=s.logs;const sets=logs.flatMap(x
 function renderProgress(){updateStats();const logs=readStore().logs.slice().sort((a,b)=>b.date.localeCompare(a.date));$('history').innerHTML=logs.length?logs.map(l=>`<div class="file-row"><div class="file-icon">🏋</div><div class="details"><b>Settimana ${l.week} · ${esc(l.day)}</b><small>${new Date(l.date).toLocaleString('it-IT')} · ${l.sets.length} serie registrate</small></div><span class="pill green">Salvato</span></div>`).join(''):'<div class="empty">Non hai ancora salvato allenamenti. Vai nel Diario palestra per iniziare.</div>'}
 function renderHomeDays(){$('homeDays').innerHTML=DAYS.map(d=>`<div class="card day-card" onclick="day='${d}';diaryDay='${d}';$('daySelect').value='${d}';$('diaryDay').value='${d}';go('program')"><div class="day-icon">${DAY_ICONS[d]}</div><strong>${d}</strong><small>${PLAN[d].title.split('–')[1]||''}</small></div>`).join('')}
 $('fileInput').addEventListener('change',e=>{const f=e.target.files[0];$('uploadResult').textContent=f?`File selezionato: ${f.name} · ${Math.round(f.size/1024)} KB. L'importazione automatica sarà attivata nella prossima milestone.`:''});
-renderHomeDays();renderProgram();renderDiary();loadMaxes();updateStats();renderProgress()};
+renderHomeDays();renderProgram();renderDiary();loadMaxes();updateStats();renderProgress();
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}
 </script></body></html>
