@@ -261,6 +261,173 @@ async function inspectExcelFile(file){
     };
   });
 }
+
+function parseTrainingSheet(sheetData){
+  const rows=sheetData.rows||[];
+
+  const aliases={
+    exercise:['esercizio','exercise','movement'],
+    sets:['set','sets','serie','series'],
+    reps:['rep','reps','rip','ripetizioni','repetition'],
+    weight:['peso','weight','load','carico'],
+    rpe:['rpe','rir'],
+    notes:['note','notes','tecnica','technique']
+  };
+
+  function norm(value){
+    return String(value??'')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'');
+  }
+
+  function identifyHeader(value){
+    const v=norm(value);
+
+    for(const [field,names] of Object.entries(aliases)){
+      if(names.includes(v))return field;
+    }
+
+    return null;
+  }
+
+  function readHeader(row,start){
+    const fields={};
+
+    for(let j=start;j<Math.min(start+10,row.length);j++){
+      const field=identifyHeader(row[j]);
+
+      if(field && fields[field]===undefined){
+        fields[field]=j;
+      }
+    }
+
+    return fields.exercise!==undefined &&
+      fields.sets!==undefined &&
+      fields.reps!==undefined
+      ?fields:null;
+  }
+
+  // Individua automaticamente i blocchi ripetuti.
+  const blockStarts=new Set();
+
+  rows.forEach(row=>{
+    row.forEach((value,col)=>{
+      if(identifyHeader(value)==='exercise'){
+        if(readHeader(row,col)){
+          blockStarts.add(col);
+        }
+      }
+    });
+  });
+
+  const blocks=[...blockStarts].sort((a,b)=>a-b);
+
+  if(!blocks.length){
+    return {
+      sheet:sheetData.name,
+      blocks:[],
+      warnings:['Nessuna intestazione Esercizio/Set/Rep riconosciuta.']
+    };
+  }
+
+  const result={
+    sheet:sheetData.name,
+    blocks:[],
+    warnings:[]
+  };
+
+  // Analizza ciascun blocco in modo indipendente.
+  blocks.forEach((startColumn,blockIndex)=>{
+    let currentWeek=null;
+    let currentDay=null;
+    let fields=null;
+
+    const block={
+      index:blockIndex+1,
+      startColumn:startColumn+1,
+      weeks:[]
+    };
+
+    rows.forEach((row,rowIndex)=>{
+      const first=String(row[startColumn]??'').trim();
+
+      if(!first)return;
+
+      // Riconosce l'intestazione della settimana.
+      const weekMatch=first.match(/^WEEK\s*(\d+)\b/i);
+
+      if(weekMatch){
+        currentWeek={
+          number:Number(weekMatch[1]),
+          label:first,
+          days:[]
+        };
+
+        block.weeks.push(currentWeek);
+        currentDay=null;
+        continue;
+      }
+
+      // Riconosce l'intestazione della giornata.
+      const dayMatch=first.match(/^DAY\s*(\d+)\b/i);
+
+      if(dayMatch){
+        if(!currentWeek){
+          result.warnings.push(
+            `Blocco ${blockIndex+1}, riga ${rowIndex+1}: giornata senza settimana.`
+          );
+          currentDay=null;
+          continue;
+        }
+
+        currentDay={
+          number:Number(dayMatch[1]),
+          label:first,
+          exercises:[]
+        };
+
+        currentWeek.days.push(currentDay);
+        continue;
+      }
+
+      // Aggiorna le colonne in presenza di una nuova intestazione.
+      const detectedHeader=readHeader(row,startColumn);
+
+      if(detectedHeader){
+        fields=detectedHeader;
+        continue;
+      }
+
+      if(!currentWeek || !currentDay || !fields)return;
+
+      const exercise=String(row[fields.exercise]??'').trim();
+
+      if(!exercise)return;
+
+      // Conserva ogni riga: non elimina le serie ripetute.
+      const entry={
+        name:exercise,
+        sets:row[fields.sets]??null,
+        reps:row[fields.reps]??null,
+        weight:fields.weight!==undefined
+          ?row[fields.weight]??null:null,
+        rpe:fields.rpe!==undefined
+          ?row[fields.rpe]??null:null,
+        notes:fields.notes!==undefined
+          ?row[fields.notes]??null:null,
+        sourceRow:rowIndex+1
+      };
+
+      currentDay.exercises.push(entry);
+    });
+
+    result.blocks.push(block);
+  });
+
+  return result;
+}
  
 const RPE_TABLE={
   10:   [100,96,92,89,86,84,81,79,76,74],
