@@ -217,6 +217,51 @@ options($('weekSelect'),Array.from({length:9},(_,i)=>String(i+1)),String(week));
 $('weekSelect').addEventListener('change',e=>{week=+e.target.value;renderProgram()});$('daySelect').addEventListener('change',e=>{day=e.target.value;renderProgram()});$('diaryWeek').addEventListener('change',e=>{diaryWeek=+e.target.value;renderDiary()});$('diaryDay').addEventListener('change',e=>{diaryDay=e.target.value;renderDiary()});
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
+async function inspectExcelFile(file){
+  const buffer=await file.arrayBuffer();
+
+  const workbook=XLSX.read(buffer,{
+    type:'array',
+    cellFormula:true,
+    cellHTML:false,
+    cellDates:true
+  });
+
+  return workbook.SheetNames.map(name=>{
+    const sheet=workbook.Sheets[name];
+
+    const rows=XLSX.utils.sheet_to_json(sheet,{
+      header:1,
+      defval:null,
+      raw:false
+    });
+
+    const formulas=[];
+
+    for(const address of Object.keys(sheet)){
+      if(address.startsWith('!'))continue;
+
+      const cell=sheet[address];
+
+      if(cell.f){
+        formulas.push({
+          cell:address,
+          formula:cell.f,
+          value:cell.v??null
+        });
+      }
+    }
+
+    return {
+      name,
+      range:sheet['!ref']||'A1',
+      rows,
+      formulas,
+      merges:(sheet['!merges']||[]).length
+    };
+  });
+}
+ 
 const RPE_TABLE={
   10:   [100,96,92,89,86,84,81,79,76,74],
   9.5:  [98,94,91,88,85,82,80,77,75,72],
