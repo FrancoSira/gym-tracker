@@ -325,7 +325,61 @@ function calculateSuggestedLoad(ex,p){
     :`${formatLoad(minLoad)}–${formatLoad(maxLoad)} kg`;
 }
 
-function exerciseMarkup(ex,idx,mode){let ps=ex.prescriptions;return `<article class="exercise"><div class="row"><div><h3>${esc(ex.name)}</h3><div class="exercise-meta">${ps.length>1?ps.length+' prescrizioni / blocchi':(ps[0].technique||'Esercizio')}</div></div><span class="pill">${String(idx+1).padStart(2,'0')}</span></div>${ps.map((p,pi)=>{let n=Number(p.working_sets)||0;let id=`${mode}-${idx}-${pi}`;return `<div class="prescription"><h4>${ps.length>1?'PROTOCOLLO '+(pi+1):'PRESCRIZIONE'}</h4><div class="pres-grid"><div class="pres-item">Serie riscaldamento<b>${esc(p.warmup||'—')}</b></div><div class="pres-item">Serie allenanti<b>${esc(p.working_sets??'Da verificare')}</b></div><div class="pres-item">Ripetizioni<b>${esc(p.reps||'Da verificare')}</b></div><div class="pres-item">Recupero<b>${esc(p.rest||'—')}</b></div><div class="pres-item">Tecnica<b>${esc(p.technique||'—')}</b></div><div class="pres-item">RPE iniziale<b>${esc(p.rpe_start||'—')}</b></div><div class="pres-item">RPE finale<b>${esc(p.rpe_end||'—')}</b></div></div>${p.notes?`<div class="note">${esc(p.notes)}</div>`:''}${mode==='diary'?`<table class="set-table"><thead><tr><th>Serie</th><th>Kg</th><th>Rip.</th><th>Fatta</th></tr></thead><tbody>${Array.from({length:Math.max(0,Math.min(n,12))},(_,si)=>`<tr><td>${si+1}</td><td><input type="number" min="0" step="0.5" inputmode="decimal" placeholder="kg" data-ex="${idx}" data-p="${pi}" data-s="${si}" data-field="weight"></td><td><input type="number" min="0" step="1" inputmode="numeric" placeholder="rip." data-ex="${idx}" data-p="${pi}" data-s="${si}" data-field="reps"></td><td><button class="set-done" data-ex="${idx}" data-p="${pi}" data-s="${si}" aria-label="Segna serie completata">✓</button></td></tr>`).join('')}</tbody></table>`:''}</div>`}).join('')}</article>`}
+
+function exerciseMarkup(ex,idx,mode){
+  let ps=ex.prescriptions;
+
+  return `<article class="exercise">
+    <div class="row">
+      <div>
+        <h3>${esc(ex.name)}</h3>
+        <div class="exercise-meta">${ps.length>1?ps.length+' prescrizioni / blocchi':(ps[0].technique||'Esercizio')}</div>
+      </div>
+      <span class="pill">${String(idx+1).padStart(2,'0')}</span>
+    </div>
+
+    ${ps.map((p,pi)=>{
+      let n=Number(p.working_sets)||0;
+      let suggestedLoad=calculateSuggestedLoad(ex,p);
+
+      return `<div class="prescription">
+        <h4>${ps.length>1?'PROTOCOLLO '+(pi+1):'PRESCRIZIONE'}</h4>
+
+        <div class="pres-grid">
+          <div class="pres-item">Serie riscaldamento<b>${esc(p.warmup||'—')}</b></div>
+          <div class="pres-item">Serie allenanti<b>${esc(p.working_sets??'Da verificare')}</b></div>
+          <div class="pres-item">Ripetizioni<b>${esc(p.reps||'Da verificare')}</b></div>
+          <div class="pres-item">Recupero<b>${esc(p.rest||'—')}</b></div>
+          <div class="pres-item">Tecnica<b>${esc(p.technique||'—')}</b></div>
+          <div class="pres-item">RPE iniziale<b>${esc(p.rpe_start||'—')}</b></div>
+          <div class="pres-item">RPE finale<b>${esc(p.rpe_end||'—')}</b></div>
+        </div>
+
+        ${suggestedLoad?`<div class="note">CARICO SUGGERITO: <b>${esc(suggestedLoad)}</b></div>`:''}
+
+        ${p.notes?`<div class="note">${esc(p.notes)}</div>`:''}
+
+        ${mode==='diary'?`
+          <table class="set-table">
+            <thead>
+              <tr><th>Serie</th><th>Kg</th><th>Rip.</th><th>Fatta</th></tr>
+            </thead>
+            <tbody>
+              ${Array.from({length:Math.max(0,Math.min(n,12))},(_,si)=>`
+                <tr>
+                  <td>${si+1}</td>
+                  <td><input type="number" min="0" step="0.5" inputmode="decimal" placeholder="kg" data-ex="${idx}" data-p="${pi}" data-s="${si}" data-field="weight"></td>
+                  <td><input type="number" min="0" step="1" inputmode="numeric" placeholder="rip." data-ex="${idx}" data-p="${pi}" data-s="${si}" data-field="reps"></td>
+                  <td><button class="set-done" data-ex="${idx}" data-p="${pi}" data-s="${si}" aria-label="Segna serie completata">✓</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `:''}
+      </div>`;
+    }).join('')}
+  </article>`;
+}
 function renderProgram(){const p=PLAN[day].phases[phaseIndex(week)];$('programDayTitle').textContent=PLAN[day].title;$('programPhase').textContent=`Settimana ${week} · Blocco ${phaseLabel(week)} · ${p.exercises.length} esercizi`; $('programExercises').innerHTML=p.exercises.map((e,i)=>exerciseMarkup(e,i,'view')).join('')}
 
 
