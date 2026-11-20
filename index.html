@@ -55,7 +55,46 @@ const PLAN={"PUSH":{"title":"PUSH – Hypertrophy Focus","phases":[{"label":"1�
 const DAYS=Object.keys(PLAN);const DAY_ICONS={PUSH:'↗',PULL:'↙',LEGS:'⌁',UPPER:'⬆',LOWER:'⬇'};
 let week=1,day='PUSH',diaryWeek=1,diaryDay='PUSH';
 const $=id=>document.getElementById(id);const storeKey='gymTrackerPrototype_v1';
-function readStore(){try{return JSON.parse(localStorage.getItem(storeKey))||{logs:[],drafts:{}}}catch(e){return {logs:[],drafts:{}}}}
+function readStore(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(storeKey))||{};
+
+    return {
+      ...saved,
+
+      logs:Array.isArray(saved.logs)?saved.logs:[],
+      drafts:saved.drafts&&typeof saved.drafts==='object'
+        ?saved.drafts:{},
+
+      plans:Array.isArray(saved.plans)?saved.plans:[],
+      activePlanId:saved.activePlanId||null,
+
+      maxes:{
+        bench:saved.maxes?.bench??'',
+        pullup:saved.maxes?.pullup??'',
+        squat:saved.maxes?.squat??'',
+        deadlift:saved.maxes?.deadlift??''
+      },
+
+      bodyweight:saved.bodyweight??''
+    };
+
+  }catch(e){
+    return {
+      logs:[],
+      drafts:{},
+      plans:[],
+      activePlanId:null,
+      maxes:{
+        bench:'',
+        pullup:'',
+        squat:'',
+        deadlift:''
+      },
+      bodyweight:''
+    };
+  }
+}
 let cloudUser=null, cloudClient=null, cloudReady=false;
 function writeStore(s){localStorage.setItem(storeKey,JSON.stringify(s));updateStats();if(cloudUser&&cloudClient)syncCloud(s)}
 async function syncCloud(data){try{const {error}=await cloudClient.from('user_workout_data').upsert({user_id:cloudUser.id,data,updated_at:new Date().toISOString()},{onConflict:'user_id'});if(error)throw error;const el=document.getElementById('syncStatus');if(el)el.textContent='● Sincronizzazione cloud attiva · '+new Date().toLocaleTimeString('it-IT')}catch(e){console.error(e);const el=document.getElementById('syncStatus');if(el)el.textContent='⚠ Sincronizzazione non riuscita · dati locali conservati'}}
