@@ -218,6 +218,41 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function exerciseMarkup(ex,idx,mode){let ps=ex.prescriptions;return `<article class="exercise"><div class="row"><div><h3>${esc(ex.name)}</h3><div class="exercise-meta">${ps.length>1?ps.length+' prescrizioni / blocchi':(ps[0].technique||'Esercizio')}</div></div><span class="pill">${String(idx+1).padStart(2,'0')}</span></div>${ps.map((p,pi)=>{let n=Number(p.working_sets)||0;let id=`${mode}-${idx}-${pi}`;return `<div class="prescription"><h4>${ps.length>1?'PROTOCOLLO '+(pi+1):'PRESCRIZIONE'}</h4><div class="pres-grid"><div class="pres-item">Serie riscaldamento<b>${esc(p.warmup||'—')}</b></div><div class="pres-item">Serie allenanti<b>${esc(p.working_sets??'Da verificare')}</b></div><div class="pres-item">Ripetizioni<b>${esc(p.reps||'Da verificare')}</b></div><div class="pres-item">Recupero<b>${esc(p.rest||'—')}</b></div><div class="pres-item">Tecnica<b>${esc(p.technique||'—')}</b></div><div class="pres-item">RPE iniziale<b>${esc(p.rpe_start||'—')}</b></div><div class="pres-item">RPE finale<b>${esc(p.rpe_end||'—')}</b></div></div>${p.notes?`<div class="note">${esc(p.notes)}</div>`:''}${mode==='diary'?`<table class="set-table"><thead><tr><th>Serie</th><th>Kg</th><th>Rip.</th><th>Fatta</th></tr></thead><tbody>${Array.from({length:Math.max(0,Math.min(n,12))},(_,si)=>`<tr><td>${si+1}</td><td><input type="number" min="0" step="0.5" inputmode="decimal" placeholder="kg" data-ex="${idx}" data-p="${pi}" data-s="${si}" data-field="weight"></td><td><input type="number" min="0" step="1" inputmode="numeric" placeholder="rip." data-ex="${idx}" data-p="${pi}" data-s="${si}" data-field="reps"></td><td><button class="set-done" data-ex="${idx}" data-p="${pi}" data-s="${si}" aria-label="Segna serie completata">✓</button></td></tr>`).join('')}</tbody></table>`:''}</div>`}).join('')}</article>`}
 function renderProgram(){const p=PLAN[day].phases[phaseIndex(week)];$('programDayTitle').textContent=PLAN[day].title;$('programPhase').textContent=`Settimana ${week} · Blocco ${phaseLabel(week)} · ${p.exercises.length} esercizi`; $('programExercises').innerHTML=p.exercises.map((e,i)=>exerciseMarkup(e,i,'view')).join('')}
 
+
+function renderDiary(){
+  const p=PLAN[diaryDay].phases[phaseIndex(diaryWeek)];
+
+  $('diaryExercises').innerHTML=
+    p.exercises.map((e,i)=>exerciseMarkup(e,i,'diary')).join('');
+
+  $('diaryStatus').textContent=`Settimana ${diaryWeek} · ${diaryDay}`;
+
+  loadMaxes();
+
+  const s=readStore();
+  const draft=s.drafts[`${diaryWeek}-${diaryDay}`]||{};
+
+  document.querySelectorAll('#diaryExercises input[data-field]').forEach(inp=>{
+    const k=`${inp.dataset.ex}-${inp.dataset.p}-${inp.dataset.s}-${inp.dataset.field}`;
+    if(draft[k]!==undefined)inp.value=draft[k];
+  });
+
+  document.querySelectorAll('.set-done').forEach(btn=>{
+    const k=`${btn.dataset.ex}-${btn.dataset.p}-${btn.dataset.s}-done`;
+
+    if(draft[k])btn.classList.add('checked');
+
+    btn.addEventListener('click',()=>{
+      btn.classList.toggle('checked');
+      saveDraft();
+    });
+  });
+
+  document.querySelectorAll('#diaryExercises input').forEach(inp=>{
+    inp.addEventListener('input',saveDraft);
+  });
+}
+
 function loadMaxes(){
   const s=readStore();
 
@@ -248,8 +283,6 @@ function saveMaxes(){
     $(id).addEventListener('change',saveMaxes);
   });
 
-loadMaxes();
-const s=readStore();const draft=s.drafts[`${diaryWeek}-${diaryDay}`]||{};document.querySelectorAll('#diaryExercises input[data-field]').forEach(inp=>{const k=`${inp.dataset.ex}-${inp.dataset.p}-${inp.dataset.s}-${inp.dataset.field}`;if(draft[k]!==undefined)inp.value=draft[k]});document.querySelectorAll('.set-done').forEach(btn=>{const k=`${btn.dataset.ex}-${btn.dataset.p}-${btn.dataset.s}-done`;if(draft[k])btn.classList.add('checked');btn.addEventListener('click',()=>{btn.classList.toggle('checked');saveDraft()})});document.querySelectorAll('#diaryExercises input').forEach(inp=>inp.addEventListener('input',saveDraft))}
 function saveDraft(){const s=readStore();const key=`${diaryWeek}-${diaryDay}`;s.drafts[key]=s.drafts[key]||{};document.querySelectorAll('#diaryExercises input[data-field]').forEach(inp=>{s.drafts[key][`${inp.dataset.ex}-${inp.dataset.p}-${inp.dataset.s}-${inp.dataset.field}`]=inp.value});document.querySelectorAll('.set-done').forEach(btn=>{s.drafts[key][`${btn.dataset.ex}-${btn.dataset.p}-${btn.dataset.s}-done`]=btn.classList.contains('checked')});writeStore(s)}
 $('saveWorkout').addEventListener('click',()=>{const s=readStore();const key=`${diaryWeek}-${diaryDay}`;const draft=s.drafts[key]||{};let sets=[];document.querySelectorAll('#diaryExercises input[data-field="weight"]').forEach(inp=>{const prefix=`${inp.dataset.ex}-${inp.dataset.p}-${inp.dataset.s}`;const reps=document.querySelector(`#diaryExercises input[data-ex="${inp.dataset.ex}"][data-p="${inp.dataset.p}"][data-s="${inp.dataset.s}"][data-field="reps"]`)?.value||'';const done=!!draft[`${prefix}-done`];if(inp.value!==''||reps!==''||done)sets.push({exercise:PLAN[diaryDay].phases[phaseIndex(diaryWeek)].exercises[+inp.dataset.ex].name,weight:+inp.value||0,reps:+reps||0,done})});if(!sets.length){alert('Inserisci almeno un carico o una ripetizione prima di salvare.');return}const existing=s.logs.findIndex(x=>x.week===diaryWeek&&x.day===diaryDay);const log={week:diaryWeek,day:diaryDay,date:new Date().toISOString(),sets};if(existing>=0)s.logs[existing]=log;else s.logs.push(log);writeStore(s);alert('Allenamento salvato nel prototipo.');go('progress')});
 function updateStats(){const s=readStore(),logs=s.logs;const sets=logs.flatMap(x=>x.sets);const volume=sets.reduce((a,x)=>a+x.weight*x.reps,0);const pct=Math.min(100,Math.round(logs.length/45*100));$('statWorkouts').textContent=logs.length;$('statSets').textContent=sets.length;$('statVolume').textContent=Math.round(volume).toLocaleString('it-IT');$('homeProgress').textContent=pct+'%';$('homeProgressBar').style.width=pct+'%';$('pWorkouts').textContent=logs.length;$('pSets').textContent=sets.length;$('pVolume').textContent=Math.round(volume).toLocaleString('it-IT');$('pExercises').textContent=new Set(sets.map(x=>x.exercise)).size;$('statWeek').textContent=String(week).padStart(2,'0')+'/09';$('homeWeek').textContent=week+' / 9'}
