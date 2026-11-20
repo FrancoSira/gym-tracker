@@ -245,7 +245,7 @@ function identifyLift(ex){
 
 function parseSimpleRange(value){
   const match=String(value??'').trim().replace(',','.').match(
-    /^(\d+(?:\.\d+)?)\s*(?:[-–]\s*(\d+(?:\.\d+)?))?\s*\+?$/
+    /^(\d+(?:\.\d+)?)\s*(?:[-–‑−]\s*(\d+(?:\.\d+)?))?\s*\+?$/
   );
 
   if(!match)return null;
