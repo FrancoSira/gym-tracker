@@ -536,6 +536,156 @@ function calculateSuggestedLoad(ex,p){
 }
 
 
+function calculateImportedLoads(ex){
+  const lift=identifyLift(ex);
+  if(!lift)return null;
+
+  const s=readStore();
+  const max=Number(s.maxes[lift]);
+
+  if(!Number.isFinite(max)||max<=0)return null;
+
+  const sets=Number(ex.sets);
+  if(!Number.isInteger(sets)||sets<1)return null;
+
+  const reps=parseSimpleRange(ex.reps);
+  if(!reps||reps[0]<1||reps[1]>10)return null;
+
+  const note=String(ex.notes||'');
+
+  const baseRpe=Number(
+    String(ex.rpe??'').replace(',','.')
+  );
+
+  if(!Number.isFinite(baseRpe))return null;
+
+  let rpeValues=[];
+  let dropPercent=0;
+
+  // Riconosce una progressione esplicita: RPE 4-5-6.
+  const sequenceMatch=note.match(
+    /rpe\s*((?:\d+(?:[.,]\d+)?\s*[-–]\s*)+\d+(?:[.,]\d+)?)/i
+  );
+
+  if(sequenceMatch){
+    rpeValues=sequenceMatch[1]
+      .split(/[-–]/)
+      .map(v=>Number(v.trim().replace(',','.')));
+  }
+
+  // Riconosce il drop percentuale.
+  const dropMatch=note.match(
+    /drop(?:\s+del)?\s*(\d+(?:[.,]\d+)?)\s*%/i
+  );
+
+  if(dropMatch){
+    dropPercent=Number(dropMatch[1].replace(',','.'));
+
+    if(dropPercent<=0||dropPercent>=100)return null;
+  }
+
+  // Riconosce le progressioni "Ascending to".
+  const ascendingMatch=note.match(
+    /ascending\s+to\s*(\d+(?:[.,]\d+)?)/i
+  );
+
+  if(!rpeValues.length&&ascendingMatch){
+    const target=Number(
+      ascendingMatch[1].replace(',','.')
+    );
+
+    rpeValues=Array.from({length:sets},(_,i)=>{
+      const value=sets===1
+        ?target
+        :baseRpe+(target-baseRpe)*i/(sets-1);
+
+      return Math.round(value*2)/2;
+    });
+  }
+
+  // Se non esiste una progressione, usa lo stesso RPE.
+  if(!rpeValues.length){
+    rpeValues=Array(sets).fill(baseRpe);
+  }
+
+  // Il drop deve essere l'ultima serie, dopo le serie progressive.
+  if(dropPercent){
+    if(rpeValues.length!==sets-1)return null;
+  }else{
+    if(rpeValues.length>sets)return null;
+
+    while(rpeValues.length<sets){
+      rpeValues.push(rpeValues[rpeValues.length-1]);
+    }
+  }
+
+  const bw=Number(s.bodyweight);
+
+  if(lift==='pullup'&&(!Number.isFinite(bw)||bw<=0)){
+    return null;
+  }
+
+  const results=[];
+
+  for(let i=0;i<sets;i++){
+    const previous=results[i-1];
+
+    // Ultima serie: applica il drop al carico precedente.
+    if(dropPercent&&i===sets-1){
+      const factor=1-dropPercent/100;
+
+      const minLoad=roundLoad(previous.minLoad*factor);
+      const maxLoad=roundLoad(previous.maxLoad*factor);
+
+      results.push({
+        set:i+1,
+        rpe:null,
+        minLoad,
+        maxLoad,
+        drop:dropPercent
+      });
+
+      continue;
+    }
+
+    const rpe=rpeValues[i];
+    const row=RPE_TABLE[Number(rpe.toFixed(1))];
+
+    if(!row)return null;
+
+    const percentages=[];
+
+    for(let rep=reps[0];rep<=reps[1];rep++){
+      if(!Number.isInteger(rep)||rep<1||rep>10)return null;
+      percentages.push(row[rep-1]);
+    }
+
+    const loads=percentages.map(pct=>max*pct/100);
+
+    let minLoad=roundLoad(Math.min(...loads));
+    let maxLoad=roundLoad(Math.max(...loads));
+
+    // Per le trazioni converte il peso totale in sovraccarico/assistenza.
+    if(lift==='pullup'){
+      minLoad=roundLoad(minLoad-bw);
+      maxLoad=roundLoad(maxLoad-bw);
+    }
+
+    results.push({
+      set:i+1,
+      rpe,
+      minLoad,
+      maxLoad,
+      drop:0
+    });
+  }
+
+  return {
+    lift,
+    sets:results
+  };
+}
+
 function exerciseMarkup(ex,idx,mode){
   let ps=ex.prescriptions;
 
