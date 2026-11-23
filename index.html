@@ -270,10 +270,7 @@ function parseTrainingSheet(sheetData){
     exercise:['esercizio','exercise','movement'],
     sets:['set','sets','serie','series'],
     reps:['rep','reps','rip','ripetizioni','repetition'],
-    weight:['peso','weight','load','carico'],
-    rpe:['rpe','rir'],
-    notes:['note','notes','tecnica','technique']
-  };
+
 
   function norm(value){
     return String(value??'')
@@ -408,18 +405,16 @@ function parseTrainingSheet(sheetData){
       if(!exercise)return;
 
       // Conserva ogni riga: non elimina le serie ripetute.
-      const entry={
-        name:exercise,
-        sets:row[fields.sets]??null,
-        reps:row[fields.reps]??null,
-        weight:fields.weight!==undefined
-          ?row[fields.weight]??null:null,
-        rpe:fields.rpe!==undefined
-          ?row[fields.rpe]??null:null,
-        notes:fields.notes!==undefined
-          ?row[fields.notes]??null:null,
-        sourceRow:rowIndex+1
-      };
+ const entry={
+   name:exercise,
+   sets:row[fields.sets]??null,
+   reps:row[fields.reps]??null,
+   rpe:fields.rpe!==undefined
+     ?row[fields.rpe]??null:null,
+   notes:fields.notes!==undefined
+     ?row[fields.notes]??null:null,
+   sourceRow:rowIndex+1
+ };
 
       currentDay.exercises.push(entry);
     });
