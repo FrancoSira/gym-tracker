@@ -270,7 +270,9 @@ function parseTrainingSheet(sheetData){
     exercise:['esercizio','exercise','movement'],
     sets:['set','sets','serie','series'],
     reps:['rep','reps','rip','ripetizioni','repetition'],
-
+    rpe:['rpe','rir'],
+    notes:['note','notes','tecnica','technique']
+  };
 
   function norm(value){
     return String(value??'')
@@ -279,7 +281,6 @@ function parseTrainingSheet(sheetData){
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g,'');
   }
-
   function identifyHeader(value){
     const v=norm(value);
 
